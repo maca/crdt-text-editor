@@ -46,17 +46,11 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-  div
-    [ style "width" "100vw"
+  Html.node "replicated-editor"
+    [ id "crdt-editor"
+    , style "width" "100vw"
     , style "height" "100vh"
     ]
-    [ Html.node "replicated-editor"
-      -- [ property "tree" model.tree ]
-      [ style "width" "100vw"
-      , style "height" "100vh"
-      , attribute "position" "relative"
-      ]
-      [ ]
-    ]
+    [ ]
 
 
