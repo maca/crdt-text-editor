@@ -1,16 +1,22 @@
+port module Main exposing (..)
+
+
 import Browser
 import Browser.Dom as Dom
 import CRDTree exposing
   (CRDTree, Error, add, addAfter, delete, batch)
+import CRDTree.Json exposing (operationEncoder, operationDecoder)
 import CRDTree.Node as Node exposing (Node, isDeleted)
 import Html exposing (..)
 import Html.Attributes exposing (attribute, style, id, property)
 import Html.Events exposing (on)
-import Html.Keyed
-import Html.Lazy exposing (lazy)
 import Json.Decode as Decode exposing
   (Decoder, at, field, decodeValue)
 import Json.Encode as Encode
+
+
+port operationOut : Encode.Value -> Cmd msg
+port operationIn : (Decode.Value -> msg) -> Sub msg
 
 
 type alias Model =
@@ -20,32 +26,44 @@ type alias Model =
 
 
 type alias Selection =
-  { start: Int, end: Int, reverse: Bool }
+  { start: Int
+  , end: Int
+  , reverse: Bool
+  }
 
 
 type alias OperationFunction =
   CRDTree Char -> Result (Error Char) (CRDTree Char)
 
 
+type alias Flags =
+   { id: Int, maxReplicas: Int }
+
+
 type Msg
   = EditorChanged (List OperationFunction)
   | SelectionChanged Selection
+  | OperationReceived Decode.Value
 
 
-main : Program Decode.Value Model Msg
+main : Program Flags Model Msg
 main =
   Browser.document
     { init = init
     , view = \model -> { title = "Editor", body = [view model] }
     , update = update
-    , subscriptions = always Sub.none
+    , subscriptions = subscriptions
     }
 
 
-init flags =
+init : Flags -> ( Model, Cmd Msg )
+init {id, maxReplicas} =
   let
+      params =
+        { id = id, maxReplicas = maxReplicas }
+
       model =
-        { tree = CRDTree.init { id = 0, maxReplicas = 1 }
+        { tree = CRDTree.init params
         , selection = Selection 0 0 False
         }
   in
@@ -57,12 +75,13 @@ update msg model =
   case msg of
     EditorChanged funcs ->
       case batch funcs model.tree of
-        Ok (tree) ->
+        Ok tree ->
           let
               selection = collapseSelection model.selection
+              operation = CRDTree.lastOperation tree
           in
           ( { model | tree = tree, selection = selection }
-          , Cmd.none
+          , operationOut <| operationEncoder charEncoder operation
           )
 
         Err _ ->
@@ -70,6 +89,19 @@ update msg model =
 
     SelectionChanged selection ->
       ( { model | selection = selection }, Cmd.none )
+
+    OperationReceived value ->
+      case decodeValue (operationDecoder charDecoder) value of
+        Ok operation ->
+          case CRDTree.apply operation model.tree of
+            Ok tree ->
+              ( { model | tree = tree }, Cmd.none )
+
+            Err _ ->
+              ( model, Cmd.none )
+
+        Err _ ->
+          ( model, Cmd.none )
 
 
 collapseSelection : Selection -> Selection
@@ -141,6 +173,11 @@ charDecoderHelp string =
     |> Maybe.withDefault (Decode.fail "Empty string")
 
 
+charEncoder : Char -> Encode.Value
+charEncoder char =
+  String.fromChar char |> Encode.string
+
+
 contentEncoder : CRDTree Char -> Encode.Value
 contentEncoder tree =
   CRDTree.root tree
@@ -188,5 +225,10 @@ selectionChangeDecoder : (CRDTree Char) -> Decoder Msg
 selectionChangeDecoder tree =
   Decode.map SelectionChanged
     (field "detail" (selectionDecoder tree))
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+  operationIn OperationReceived
 
 

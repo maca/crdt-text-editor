@@ -1,0 +1,48 @@
+version: '3'
+
+services:
+  elm:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      - elm-stuff:/app/elm-stuff
+      - elm-build:/app/build
+      - elm-vendor:/app/vendor
+    entrypoint:
+      - elm-live
+      - src/Main.elm
+      - --start-page=main.html
+      - --
+      - --output=build/main-dev.js
+    ports:
+      - 8000:8000
+
+  elixir:
+    build: ./backend
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./backend:/app
+      - elixir-build:/app/_build/
+      - elixir-cover:/app/cover/
+      - elixir-deps:/app/deps/
+      - elixir-doc:/app/doc/
+      - elixir-fetch:/app/.fetch
+    entrypoint:
+      - iex
+      - -S
+      - mix
+    ports:
+      - 8080:8080
+    depends_on:
+      - elm
+
+volumes:
+  elm-stuff: {}
+  elm-build: {}
+  elm-vendor: {}
+  elixir-build: {}
+  elixir-cover: {}
+  elixir-deps: {}
+  elixir-doc: {}
+  elixir-fetch: {}
