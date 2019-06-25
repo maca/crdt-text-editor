@@ -12,7 +12,7 @@ defmodule WsHandler do
 
   def websocket_init({topic, _} = state) do
     :ok = subscribe(topic)
-    {:ok, state}
+    {:reply, {:text, ~s({"connected": true})}, state}
   end
 
   def websocket_handle({:text, msg}, {topic, _} = state) do

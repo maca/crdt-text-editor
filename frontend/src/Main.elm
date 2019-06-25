@@ -7,6 +7,7 @@ import CRDTree exposing
   (CRDTree, Error, add, addAfter, delete, batch)
 import CRDTree.Json exposing (operationEncoder, operationDecoder)
 import CRDTree.Node as Node exposing (Node, isDeleted)
+import CRDTree.Operation as Operation exposing (Operation)
 import Html exposing (..)
 import Html.Attributes exposing (attribute, style, id, property)
 import Html.Events exposing (on)
@@ -15,8 +16,8 @@ import Json.Decode as Decode exposing
 import Json.Encode as Encode
 
 
-port operationOut : Encode.Value -> Cmd msg
-port operationIn : (Decode.Value -> msg) -> Sub msg
+port messageOut : Encode.Value -> Cmd msg
+port messageIn : (Decode.Value -> msg) -> Sub msg
 
 
 type alias Model =
@@ -43,7 +44,11 @@ type alias Flags =
 type Msg
   = EditorChanged (List OperationFunction)
   | SelectionChanged Selection
-  | OperationReceived Decode.Value
+  | OperationReceived (Operation Char)
+  | SyncRequested Int
+  | Connected
+  | ReplicaOnline ( Int, Int )
+  | MessageFail Decode.Error
 
 
 main : Program Flags Model Msg
@@ -81,7 +86,7 @@ update msg model =
               operation = CRDTree.lastOperation tree
           in
           ( { model | tree = tree, selection = selection }
-          , operationOut <| operationEncoder charEncoder operation
+          , messageOut <| sendOperation operation
           )
 
         Err _ ->
@@ -90,18 +95,40 @@ update msg model =
     SelectionChanged selection ->
       ( { model | selection = selection }, Cmd.none )
 
-    OperationReceived value ->
-      case decodeValue (operationDecoder charDecoder) value of
-        Ok operation ->
-          case CRDTree.apply operation model.tree of
-            Ok tree ->
-              ( { model | tree = tree }, Cmd.none )
+    OperationReceived operation ->
+      case CRDTree.apply operation model.tree of
+        Ok tree ->
+          ( { model | tree = tree }, Cmd.none )
 
-            Err _ ->
+        Err (CRDTree.Error failedOp) ->
+          case Operation.replicaId failedOp of
+            Just replicaId ->
+              ( model
+              , messageOut <| syncRequest replicaId model
+              )
+
+            Nothing ->
               ( model, Cmd.none )
 
-        Err _ ->
-          ( model, Cmd.none )
+    SyncRequested timestamp ->
+      ( model, messageOut <| sendOperationSince timestamp model )
+
+    Connected ->
+      ( model, messageOut <| replicaOnline model )
+
+    ReplicaOnline ( replicaId, timestamp ) ->
+      ( model
+      , Cmd.batch
+          [ messageOut <| syncRequest replicaId model
+          , messageOut <| sendOperationSince timestamp model
+          ]
+      )
+
+    MessageFail error ->
+      let
+          _ = Debug.log "fail" error
+      in
+      ( model, Cmd.none )
 
 
 collapseSelection : Selection -> Selection
@@ -149,7 +176,11 @@ editorOperationDecoderHelp opType =
 
     "addAfter" ->
       Decode.map2 addAfter
-        (field "path" <| Decode.list Decode.int)
+        (field "path" <| Decode.oneOf
+          [ Decode.list Decode.int
+          , Decode.succeed [0]
+          ]
+        )
         (field "value" charDecoder)
 
     "delete" ->
@@ -228,7 +259,69 @@ selectionChangeDecoder tree =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-  operationIn OperationReceived
+subscriptions _ =
+  messageIn decodeMessage
+
+
+decodeMessage : Encode.Value -> Msg
+decodeMessage value =
+  case decodeValue messageDecoder value of
+    Ok msg -> msg
+    Err str -> MessageFail str
+
+
+messageDecoder : Decoder Msg
+messageDecoder =
+  Decode.oneOf
+    [ Decode.map OperationReceived <| operationDecoder charDecoder
+    , Decode.map SyncRequested <| syncRequestDecoder
+    , Decode.map (always Connected) <| connectedDecoder
+    , Decode.map ReplicaOnline <| replicaOnlineDecoder
+    ]
+
+
+syncRequest : Int -> Model -> Encode.Value
+syncRequest replicaId {tree} =
+  let
+      timestamp = CRDTree.lastReplicaTimestamp replicaId tree
+  in
+  Encode.object
+    [ ( "last_timestamp", Encode.int timestamp )
+    ]
+
+
+sendOperation : (Operation Char) -> Encode.Value
+sendOperation operations =
+  operationEncoder charEncoder operations
+
+
+sendOperationSince : Int -> Model -> Encode.Value
+sendOperationSince since {tree} =
+  sendOperation <| CRDTree.operationsSince since tree
+
+
+syncRequestDecoder : Decoder Int
+syncRequestDecoder =
+  (field "last_timestamp" Decode.int)
+
+
+replicaOnline : Model -> Encode.Value
+replicaOnline {tree} =
+  Encode.object
+    [ ( "replica_online", Encode.int <| CRDTree.id tree )
+    , ( "timestamp", Encode.int <| CRDTree.timestamp tree )
+    ]
+
+replicaOnlineDecoder : Decoder ( Int, Int )
+replicaOnlineDecoder =
+  Decode.map2 Tuple.pair
+    (field "replica_online" Decode.int)
+    (field "timestamp" Decode.int)
+
+
+connectedDecoder : Decoder Bool
+connectedDecoder =
+  (field "connected" Decode.bool)
+
 
 

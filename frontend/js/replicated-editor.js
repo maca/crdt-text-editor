@@ -60,18 +60,19 @@ class ReplicatedEditor extends HTMLElement {
   contentInserted(from, changes) {
     const prevNode = this.nodes[from - 1]
       , addFun = chr => { return { op: "add", value: chr } }
+      , first = changes.shift()
+      , ops = changes.map(addFun);
+
 
     if (prevNode) {
-      const first = changes.shift(), ops = changes.map(addFun);
-
       ops.unshift({ op: "addAfter"
         , value: first, path: prevNode.path
       })
-
-      return ops;
     } else {
-      return changes.map(addFun);
+      ops.unshift({ op: "add", value: first })
     }
+
+    return ops;
   }
 
   contentRemoved(from, changes) {
