@@ -63,14 +63,10 @@ class ReplicatedEditor extends HTMLElement {
       , first = changes.shift()
       , ops = changes.map(addFun);
 
-
-    if (prevNode) {
-      ops.unshift({ op: "addAfter"
-        , value: first, path: prevNode.path
-      })
-    } else {
-      ops.unshift({ op: "add", value: first })
-    }
+    ops.unshift({ op: "addAfter"
+      , value: first
+      , path: prevNode && prevNode.path
+    })
 
     return ops;
   }
