@@ -176,11 +176,12 @@ editorOperationDecoderHelp opType =
 
     "addAfter" ->
       Decode.map2 addAfter
-        (field "path" <| Decode.oneOf
-          [ Decode.list Decode.int
-          , Decode.succeed [0]
-          ]
-        )
+        (field "path" (Decode.list Decode.int))
+        (field "value" charDecoder)
+
+    "addAtBeginning" ->
+      Decode.map2 addAfter
+        (Decode.succeed [0])
         (field "value" charDecoder)
 
     "delete" ->

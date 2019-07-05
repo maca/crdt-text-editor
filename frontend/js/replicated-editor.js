@@ -59,16 +59,17 @@ class ReplicatedEditor extends HTMLElement {
 
   contentInserted(from, changes) {
     const prevNode = this.nodes[from - 1]
-      , addFun = chr => { return { op: "add", value: chr } }
-      , first = changes.shift()
-      , ops = changes.map(addFun);
 
-    ops.unshift({ op: "addAfter"
-      , value: first
-      , path: prevNode && prevNode.path
-    })
-
-    return ops;
+    return changes.map((chr, idx) => {
+      if (idx === 0 && prevNode) {
+        return { op: "addAfter", value: chr, path: prevNode.path };
+      } else if (from < 1) {
+        return { op: "addAtBeginning", value: chr };
+      //   return { op: "addAtBeginning", value: chrl };
+      } else {
+        return { op: "add", value: chr };
+      }
+    });
   }
 
   contentRemoved(from, changes) {
