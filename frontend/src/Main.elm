@@ -98,7 +98,13 @@ update msg model =
     OperationReceived operation ->
       case CRDTree.apply operation model.tree of
         Ok tree ->
-          ( { model | tree = tree }, Cmd.none )
+          let
+              selection =
+                adjustSelection model.tree tree model.selection
+          in
+          ( { model | tree = tree, selection = selection }
+          , Cmd.none
+          )
 
         Err (CRDTree.Error failedOp) ->
           case Operation.replicaId failedOp of
@@ -134,6 +140,76 @@ update msg model =
 collapseSelection : Selection -> Selection
 collapseSelection {start} =
   Selection start start False
+
+
+adjustSelection : CRDTree Char -> CRDTree Char
+                               -> Selection
+                               -> Selection
+adjustSelection oldTree newTree selection =
+  let
+      start =
+        adjustSelectionIdx oldTree newTree selection.start
+
+      end =
+        adjustSelectionIdx oldTree newTree selection.end
+  in
+  { selection | start = start, end = end }
+
+
+adjustSelectionIdx : CRDTree Char -> CRDTree Char -> Int -> Int
+adjustSelectionIdx oldTree newTree idx =
+  let
+      default =
+        treeChildren newTree
+          |> List.filter (not << Node.isDeleted)
+          |> List.length
+  in
+      idxToNode oldTree idx
+        |> Maybe.andThen (nodeToIdx newTree)
+        |> Maybe.withDefault default
+
+
+idxToNode : CRDTree Char -> Int -> Maybe (Node Char)
+idxToNode tree idx =
+  let
+      fn node i maybe =
+        if (idx == i) then (Just node) else maybe
+  in
+      foldNodes fn tree
+
+
+nodeToIdx : CRDTree Char -> Node Char -> Maybe Int
+nodeToIdx tree node =
+  let
+      fn n i maybe =
+        if (Node.path n) == (Node.path node) then
+          Just i
+        else
+          maybe
+  in
+      foldNodes fn tree
+
+
+foldNodes : (Node Char -> Int -> Maybe a -> Maybe a)
+          -> CRDTree Char
+          -> Maybe a
+foldNodes fn tree =
+  let
+      foldFn n ( i, m ) =
+        if Node.isDeleted n then
+          ( i, m )
+
+        else
+          ( i + 1, fn n i m )
+  in
+    treeChildren tree
+      |> List.foldr foldFn ( 0, Nothing )
+      |> Tuple.second
+
+
+treeChildren : CRDTree Char -> List (Node Char)
+treeChildren tree =
+  Node.children <| CRDTree.root tree
 
 
 view : Model -> Html Msg
