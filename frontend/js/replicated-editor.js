@@ -22,9 +22,9 @@ class ReplicatedEditor extends HTMLElement {
 
     const rangeStart = this.session.doc.indexToPosition(start)
       , rangeEnd = this.session.doc.indexToPosition(end)
-      , selection = { start: rangeStart, end: rangeEnd }
+      , selection = { start: rangeStart, end: rangeEnd };
 
-    this.editor.selection.setSelectionRange(selection, reverse)
+    this.editor.selection.setSelectionRange(selection, reverse);
   }
 
   get text() {
@@ -65,7 +65,6 @@ class ReplicatedEditor extends HTMLElement {
         return { op: "addAfter", value: chr, path: prevNode.path };
       } else if (from < 1) {
         return { op: "addAtBeginning", value: chr };
-      //   return { op: "addAtBeginning", value: chrl };
       } else {
         return { op: "add", value: chr };
       }
