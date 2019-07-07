@@ -283,14 +283,14 @@ charDecoderHelp string =
 
 charEncoder : Char -> Encode.Value
 charEncoder char =
-  String.fromChar char |> Encode.string
+  Encode.string <| String.fromChar char
 
 
 contentEncoder : CRDTree Char -> Encode.Value
 contentEncoder tree =
   CRDTree.root tree
     |> Node.children
-    |> List.filter (\node -> not (isDeleted node))
+    |> List.filter (not << isDeleted)
     |> List.reverse
     |> Encode.list nodeEncoder
 
@@ -399,6 +399,5 @@ replicaOnlineDecoder =
 connectedDecoder : Decoder Bool
 connectedDecoder =
   (field "connected" Decode.bool)
-
 
 
