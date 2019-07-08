@@ -1,11 +1,12 @@
 const node = document.getElementById('app-node')
   , maxReplicas = Math.pow(2, 24)
-  // , maxReplicas = 2
   , id = Math.floor(Math.random() * maxReplicas)
   , flags = { id: id, maxReplicas: maxReplicas }
   , app = Elm.Main.init({ node: node, flags: flags })
   , hostname = window.location.hostname
-  , socketUrl = 'ws://' + hostname + ':8080'
+  , protocol = window.location.protocol.replace('http', 'ws')
+  , port = window.location.port && ':8080' || ''
+  , socketUrl = protocol + '//' + hostname + port + '/ws'
 
 console.log("replicaId", id)
 

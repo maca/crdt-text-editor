@@ -1,12 +1,13 @@
 defmodule WsHandler do
   import CodeColab.PubSub
-  alias CodeColab.IdStore
+  # alias CodeColab.IdStore
 
   require Logger
 
   def init(req, _opts) do
     topic = "editor"
-    id = IdStore.assign_id(topic)
+    # id = IdStore.assign_id(topic)
+    id = 0
     {:cowboy_websocket, req, {topic, id}}
   end
 

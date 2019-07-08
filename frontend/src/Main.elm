@@ -131,9 +131,6 @@ update msg model =
       )
 
     MessageFail error ->
-      let
-          _ = Debug.log "fail" error
-      in
       ( model, Cmd.none )
 
 

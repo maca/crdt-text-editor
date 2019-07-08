@@ -5,25 +5,53 @@ defmodule MixProject do
     [
       app: :codecolab,
       version: "0.1.0",
-      elixir: "~> 1.7",
+      elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      releases: releases()
     ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      mod: {CodeColab, []},
+      mod: { CodeColab, [] },
       extra_applications: [:logger, :cowboy]
     ]
+  end
+
+  def releases do
+    [
+      editor: [
+        include_executables_for: [:unix],
+        steps: [&build_frontend/1, :assemble]
+      ]
+    ]
+  end
+
+  def build_frontend(release) do
+    static_dir = Path.absname "./priv/static"
+    frontend_dir = Path.absname "../frontend"
+
+    { _, 0 } = System.cmd("mkdir", ["-p", static_dir])
+    { _, 0 } = System.cmd("#{frontend_dir}/bin/build",
+      [ "src/Main.elm" ], cd: frontend_dir)
+    { _, 0 } = System.cmd("cp",
+      ["-r", "#{frontend_dir}/js", static_dir])
+    { _, 0 } = System.cmd("cp",
+      [ "-r",
+        "#{frontend_dir}/build/elm.min.js",
+        "#{static_dir}/js"
+      ])
+
+    release
   end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:cowboy, "~> 2.5.0"},
-      {:phoenix_pubsub, "~> 1.1.2"}
+      { :cowboy, "~> 2.5.0" },
+      { :phoenix_pubsub, "~> 1.1.2" }
     ]
   end
 end

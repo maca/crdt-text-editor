@@ -23,3 +23,4 @@ erl_crash.dump
 whiteboard-*.tar
 
 Mnesia*
+priv/static/js
