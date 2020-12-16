@@ -5,7 +5,7 @@ defmodule MixProject do
     [
       app: :codecolab,
       version: "0.1.0",
-      elixir: "~> 1.9",
+      elixir: "~> 1.11.0",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       releases: releases()
@@ -34,13 +34,17 @@ defmodule MixProject do
     frontend_dir = Path.absname "../frontend"
 
     { _, 0 } = System.cmd("mkdir", ["-p", static_dir])
-    { _, 0 } = System.cmd("#{frontend_dir}/bin/build",
-      [ "src/Main.elm" ], cd: frontend_dir)
+    { _, 0 } = System.cmd("elm",
+      [ "make",
+        "src/Main.elm",
+        "--optimize",
+        "--output=build/main.prod.js"
+      ], cd: frontend_dir)
     { _, 0 } = System.cmd("cp",
       ["-r", "#{frontend_dir}/js", static_dir])
     { _, 0 } = System.cmd("cp",
       [ "-r",
-        "#{frontend_dir}/build/elm.min.js",
+        "#{frontend_dir}/build/main.prod.js",
         "#{static_dir}/js"
       ])
 
