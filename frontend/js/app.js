@@ -1,8 +1,6 @@
 const node = document.getElementById('app-node')
-  , maxReplicas = Math.pow(2, 24)
-  , id = Math.floor(Math.random() * maxReplicas)
-  , flags = { id: id, maxReplicas: maxReplicas }
-  , app = Elm.Main.init({ node: node, flags: flags })
+  , id = Math.floor(Math.random() * Math.pow(2, 19))
+  , app = Elm.Main.init({ node: node, flags: id })
   , hostname = window.location.hostname
   , protocol = window.location.protocol.replace('http', 'ws')
   , port = window.location.port && ':8080' || ''

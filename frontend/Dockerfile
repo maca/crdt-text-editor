@@ -1,4 +1,4 @@
-FROM wunsh/alpine-elm:0.19-alpine3.8
+FROM codesimple/elm:0.19
 
 ENV APP_HOME /app/
 

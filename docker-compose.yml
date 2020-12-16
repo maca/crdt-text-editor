@@ -11,7 +11,7 @@ services:
     entrypoint:
       - elm-live
       - src/Main.elm
-      - --start-page=main.html
+      - --start-page=index.html
       - --
       - --output=build/main-dev.js
     ports:
