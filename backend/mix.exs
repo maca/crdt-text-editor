@@ -24,7 +24,7 @@ defmodule MixProject do
     [
       editor: [
         include_executables_for: [:unix],
-        steps: [&build_frontend/1, :assemble]
+        steps: [&build_frontend/1, :assemble, :tar]
       ]
     ]
   end
